@@ -64,7 +64,7 @@ def send_amplitude_event(user_id: str, event_type: str, event_properties: dict):
         executor.submit(send_event_in_thread)
 
 
-async def log_user_action(user_id: str, action: str):
+async def log_action(user_id: str, action: str):
     event_type = "user_action"
     event_properties = {"action": action}
     send_amplitude_event(user_id, event_type, event_properties)
