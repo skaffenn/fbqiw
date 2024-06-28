@@ -1,7 +1,7 @@
 from concurrent.futures import ThreadPoolExecutor
 from amplitude import Amplitude, BaseEvent
 import base64
-import requests
+from openai import AsyncOpenAI
 from aiogram import types, Bot
 from data import config
 import os
@@ -9,40 +9,35 @@ import os
 executor = ThreadPoolExecutor(max_workers=1)
 amplitude_client = Amplitude(config.amplitude_api_key)
 bot = Bot(token=config.bot_token)
-api_key = config.openai_api_token
+client = AsyncOpenAI(api_key=config.openai_api_token)
 
 
 async def determine_mood(message: types.Message) -> str:
     photo_file_path = await download_image(message)
     base64_image = encode_image(photo_file_path)
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_key}"
-    }
-    payload = {
-        "model": "gpt-4o",
-        "messages": [
+    response = await client.chat.completions.create(
+        model="gpt-4-vision-preview",
+        messages=[
             {
                 "role": "user",
                 "content": [
                     {
                         "type": "text",
-                        "text": "Какое настроение у человека на фото?"
+                        "text": "Опиши эмоции человека на фото"
                     },
                     {
                         "type": "image_url",
                         "image_url": {
-                            "url": f"data:image/jpeg;base64,{base64_image}"
-                        }
-                    }
-                ]
+                            "url": f"data:image/png;base64,{base64_image}"
+                        },
+                    },
+                ],
+
             }
-        ],
-        "max_tokens": 300
-    }
-    response = requests.post("https://api.openai.com/v1/chat/completions", headers=headers, json=payload)
+        ]
+    )
     os.remove(photo_file_path)
-    return response.json()['choices'][0]['message']['content']
+    return response.choices[0].message.content
 
 
 def encode_image(image_path):
